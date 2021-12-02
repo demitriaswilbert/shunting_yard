@@ -139,8 +139,7 @@ int main()
                 append_token(tokens, type, tmpval, &tFilled);
                 type = 0; comma = 0; tmpval = 0;
             }
-            type = 2; tmpval = ch;
-            append_token(tokens, type, tmpval, &tFilled);
+            append_token(tokens, 2, ch, &tFilled);
             type = 0; comma = 0; tmpval = 0;
         }
     }
@@ -150,34 +149,20 @@ int main()
         type = 0; comma = 0; tmpval = 0;
     }
 
-    for(int i = 0; i < tFilled; i++)
-    {
-        if(tokens[i].type == 0)
-            printf(" \n");
-        if(tokens[i].type == 1)
-            printf("%lf\n", *((double*)&tokens[i].val));
-        if(tokens[i].type == 2)
-            printf("%c\n", (char)tokens[i].val);
-        if(tokens[i].type == 3)
-            printf("End\n");
-    }
     int err = 1;
     while(err > 0)
     { 
         err = process_token(tokens, &tFilled);
     }
-    if(err == 0) printf("done\n");
     if(err == -1) printf("error -1\n");
     
     for(int i = 0; i < tFilled; i++)
     {
-        if(tokens[i].type == 0)
-            printf("");
         if(tokens[i].type == 1)
             printf("%lf\n", *((double*)&tokens[i].val));
-        if(tokens[i].type == 2)
+        else if(tokens[i].type == 2)
             printf("%c\n", (char)tokens[i].val);
-        if(tokens[i].type == 3)
+        else if(tokens[i].type == 3)
             printf("End\n");
     }
 } 
