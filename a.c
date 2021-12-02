@@ -9,7 +9,7 @@
  * 
  */
 #include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 typedef struct
@@ -128,6 +128,11 @@ void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t
             while(opstack[(*nopstack) - 1].val != '(')
             {
                 pop_token(queue, nqueue, opstack, nopstack);
+                if(*nopstack == 0)
+                {
+                    fprintf(stderr, "ERROR. mismatched parentheses\n");
+                    exit(-1);
+                }
             }
             (*nopstack)--;
         }
@@ -214,6 +219,11 @@ int main()
         token.type = 0; comma = 0; token.val = 0;
     }
 
+    if((opstack[nopstack - 1].type == 2) && (opstack[nopstack - 1].val == '('))
+    {
+        fprintf(stderr, "ERROR. mismatched parentheses\n");
+        exit(-1);
+    }
     while(nopstack)
     {
         pop_token(queue, &nqueue, opstack, &nopstack);
