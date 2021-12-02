@@ -8,7 +8,19 @@ typedef struct
     uint64_t val;
 }Token_t;
 
-void append_token(Token_t* buf, int type, uint64_t val, int* nfilled)
+int prec(Token_t op) {
+    char c = op.val;
+    if(c == '^')
+        return 3;
+    else if(c == '/' || c=='*')
+        return 2;
+    else if(c == '+' || c == '-')
+        return 1;
+    else
+        return -1;
+}
+
+void push_token(Token_t* buf, int type, uint64_t val, int* nfilled)
 {
     Token_t tmpval = {type, val};
     buf[(*nfilled)++] = tmpval;
@@ -17,6 +29,18 @@ void append_token(Token_t* buf, int type, uint64_t val, int* nfilled)
 void pop_token(Token_t* dest, int* destFilled, Token_t* src, int* srcFilled)
 {
     dest[(*destFilled)++] = src[--(*srcFilled)];
+}
+
+void print_queue(Token_t* queue, int nqueue)
+{
+    for(int i = 0; i < nqueue; i++)
+    {
+        if(queue[i].type == 1)
+            printf("%lf ", *((double*)&queue[i].val));
+        else if(queue[i].type == 2)
+            printf("%c ", (char)queue[i].val);
+    }
+    printf("\n");
 }
 
 Token_t operate(Token_t* t1, Token_t* t2, Token_t* operator)
@@ -96,12 +120,12 @@ int main()
         {
             if(type == 1)
             {
-                append_token(tokens, type, tmpval, &tFilled);
+                push_token(tokens, type, tmpval, &tFilled);
                 type = 0; comma = 0; tmpval = 0;
             }
             if(type != 0)
             {
-                append_token(tokens, type, tmpval, &tFilled);
+                push_token(tokens, type, tmpval, &tFilled);
                 type = 0; comma = 0; tmpval = 0;
             }
         }
@@ -109,7 +133,7 @@ int main()
         {
             if(type == 2)
             {
-                append_token(tokens, type, tmpval, &tFilled);
+                push_token(tokens, type, tmpval, &tFilled);
                 type = 1; comma = 0; tmpval = 0;
             }
             if(type == 0)
@@ -136,33 +160,61 @@ int main()
         {
             if(type == 1)
             {
-                append_token(tokens, type, tmpval, &tFilled);
+                push_token(tokens, type, tmpval, &tFilled);
                 type = 0; comma = 0; tmpval = 0;
             }
-            append_token(tokens, 2, ch, &tFilled);
+            push_token(tokens, 2, ch, &tFilled);
             type = 0; comma = 0; tmpval = 0;
         }
     }
     if(type == 1)
     {
-        append_token(tokens, type, tmpval, &tFilled);
+        push_token(tokens, type, tmpval, &tFilled);
         type = 0; comma = 0; tmpval = 0;
     }
+    Token_t opstack[1000];
+    int nopstack = 0;
+    Token_t queue[1000];
+    int nqueue = 0;
+
+    for(int i = 0; i < tFilled; i++)
+    {
+        if(tokens[i].type == 1)
+            push_token(queue, tokens[i].type, tokens[i].val, &nqueue);
+        if(tokens[i].type == 2)
+        {
+            if(tokens[i].val == '(')
+                push_token(opstack, tokens[i].type, tokens[i].val, &nopstack);
+            else if(tokens[i].val == ')')
+            {
+                while(opstack[nopstack - 1].val != '(')
+                {
+                    pop_token(queue, &nqueue, opstack, &nopstack);
+                }
+                nopstack--;
+            }
+            else
+            {
+                while((nopstack > 0) && prec(tokens[i]) <= prec(opstack[nopstack - 1]))
+                {
+                    pop_token(queue, &nqueue, opstack, &nopstack);
+                }
+                push_token(opstack, tokens[i].type, tokens[i].val, &nopstack);
+            }
+        }
+    }
+    while(nopstack)
+    {
+        pop_token(queue, &nqueue, opstack, &nopstack);
+    }
+    print_queue(queue, nqueue);
 
     int err = 1;
     while(err > 0)
     { 
-        err = process_token(tokens, &tFilled);
+        err = process_token(queue, &nqueue);
     }
     if(err == -1) printf("error -1\n");
     
-    for(int i = 0; i < tFilled; i++)
-    {
-        if(tokens[i].type == 1)
-            printf("%lf\n", *((double*)&tokens[i].val));
-        else if(tokens[i].type == 2)
-            printf("%c\n", (char)tokens[i].val);
-        else if(tokens[i].type == 3)
-            printf("End\n");
-    }
+    print_queue(queue, nqueue);
 } 
