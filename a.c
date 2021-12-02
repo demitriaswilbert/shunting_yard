@@ -1,3 +1,13 @@
+/**
+ * @file a.c
+ * @author Demitrias Wilbert (demitriaswilbert@gmail.com)
+ * @brief Source code for Shunting yard algorithm
+ * @version 0.1
+ * @date 2021-12-02
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -10,9 +20,7 @@ typedef struct
 
 int prec(Token_t op) {
     char c = op.val;
-    if(c == '^')
-        return 3;
-    else if(c == '/' || c=='*')
+    if(c == '/' || c=='*')
         return 2;
     else if(c == '+' || c == '-')
         return 1;
@@ -36,7 +44,7 @@ void print_queue(Token_t* queue, int nqueue)
     for(int i = 0; i < nqueue; i++)
     {
         if(queue[i].type == 1)
-            printf("%lf ", *((double*)&queue[i].val));
+            printf("%lg ", *((double*)&queue[i].val));
         else if(queue[i].type == 2)
             printf("%c ", (char)queue[i].val);
     }
@@ -69,7 +77,7 @@ Token_t operate(Token_t* t1, Token_t* t2, Token_t* operator)
             break;
         }
     }
-    printf("%lf %c %lf = %lf\n", *(double*)&t1->val, (char)operator->val, *(double*)&t2->val, *(double*)&result.val);
+    printf("operate : %lg %c %lg = %lg\n", *(double*)&t1->val, (char)operator->val, *(double*)&t2->val, *(double*)&result.val);
     return result;
 }
 
@@ -107,9 +115,41 @@ int process_token(Token_t* tokens, int* ptFilled)
     return 1;
 }
 
+void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t token)
+{
+    if(token.type == 1)
+        push_token(queue, token.type, token.val, nqueue);
+    if(token.type == 2)
+    {
+        if(token.val == '(')
+            push_token(opstack, token.type, token.val, nopstack);
+        else if(token.val == ')')
+        {
+            while(opstack[(*nopstack) - 1].val != '(')
+            {
+                pop_token(queue, nqueue, opstack, nopstack);
+            }
+            (*nopstack)--;
+        }
+        else
+        {
+            while(((*nopstack) > 0) && prec(token) <= prec(opstack[(*nopstack) - 1]))
+            {
+                pop_token(queue, nqueue, opstack, nopstack);
+            }
+            push_token(opstack, token.type, token.val, nopstack);
+        }
+    }
+}
+
 int main()
 {
-    Token_t tokens[100];
+    Token_t opstack[1000];
+    int nopstack = 0;
+    Token_t queue[1000];
+    int nqueue = 0;
+
+    Token_t token;
     int tFilled = 0;
     int type = 0;
     uint64_t tmpval = 0;
@@ -120,12 +160,16 @@ int main()
         {
             if(type == 1)
             {
-                push_token(tokens, type, tmpval, &tFilled);
+                token.type = type;
+                token.val = tmpval;
+                syAlg(opstack, &nopstack, queue, &nqueue, token);
                 type = 0; comma = 0; tmpval = 0;
             }
             if(type != 0)
             {
-                push_token(tokens, type, tmpval, &tFilled);
+                token.type = type;
+                token.val = tmpval;
+                syAlg(opstack, &nopstack, queue, &nqueue, token);
                 type = 0; comma = 0; tmpval = 0;
             }
         }
@@ -133,7 +177,9 @@ int main()
         {
             if(type == 2)
             {
-                push_token(tokens, type, tmpval, &tFilled);
+                token.type = type;
+                token.val = tmpval;
+                syAlg(opstack, &nopstack, queue, &nqueue, token);
                 type = 1; comma = 0; tmpval = 0;
             }
             if(type == 0)
@@ -160,61 +206,38 @@ int main()
         {
             if(type == 1)
             {
-                push_token(tokens, type, tmpval, &tFilled);
+                token.type = type;
+                token.val = tmpval;
+                syAlg(opstack, &nopstack, queue, &nqueue, token);
                 type = 0; comma = 0; tmpval = 0;
             }
-            push_token(tokens, 2, ch, &tFilled);
+            token.type = 2;
+            token.val = ch;
+            syAlg(opstack, &nopstack, queue, &nqueue, token);
             type = 0; comma = 0; tmpval = 0;
         }
     }
     if(type == 1)
     {
-        push_token(tokens, type, tmpval, &tFilled);
+        token.type = type;
+        token.val = tmpval;
+        syAlg(opstack, &nopstack, queue, &nqueue, token);
         type = 0; comma = 0; tmpval = 0;
     }
-    Token_t opstack[1000];
-    int nopstack = 0;
-    Token_t queue[1000];
-    int nqueue = 0;
 
-    for(int i = 0; i < tFilled; i++)
-    {
-        if(tokens[i].type == 1)
-            push_token(queue, tokens[i].type, tokens[i].val, &nqueue);
-        if(tokens[i].type == 2)
-        {
-            if(tokens[i].val == '(')
-                push_token(opstack, tokens[i].type, tokens[i].val, &nopstack);
-            else if(tokens[i].val == ')')
-            {
-                while(opstack[nopstack - 1].val != '(')
-                {
-                    pop_token(queue, &nqueue, opstack, &nopstack);
-                }
-                nopstack--;
-            }
-            else
-            {
-                while((nopstack > 0) && prec(tokens[i]) <= prec(opstack[nopstack - 1]))
-                {
-                    pop_token(queue, &nqueue, opstack, &nopstack);
-                }
-                push_token(opstack, tokens[i].type, tokens[i].val, &nopstack);
-            }
-        }
-    }
     while(nopstack)
     {
         pop_token(queue, &nqueue, opstack, &nopstack);
     }
-    print_queue(queue, nqueue);
 
+    print_queue(queue, nqueue);
     int err = 1;
     while(err > 0)
     { 
         err = process_token(queue, &nqueue);
+        print_queue(queue, nqueue);
     }
     if(err == -1) printf("error -1\n");
     
-    print_queue(queue, nqueue);
+    //print_queue(queue, nqueue);
 } 
