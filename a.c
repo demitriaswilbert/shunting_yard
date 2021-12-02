@@ -150,79 +150,68 @@ int main()
     int nqueue = 0;
 
     Token_t token;
-    int tFilled = 0;
-    int type = 0;
-    uint64_t tmpval = 0;
     int comma = 0;
     for(int ch = fgetc(stdin); ch >= 32 && ch <= 127; ch = fgetc(stdin))
     {
         if(ch == ' ')
         {
-            if(type == 1)
+            if(token.type == 1)
             {
-                token.type = type;
-                token.val = tmpval;
                 syAlg(opstack, &nopstack, queue, &nqueue, token);
-                type = 0; comma = 0; tmpval = 0;
+                token.type = 0; comma = 0; token.val = 0;
             }
-            if(type != 0)
+            if(token.type != 0)
             {
-                token.type = type;
-                token.val = tmpval;
                 syAlg(opstack, &nopstack, queue, &nqueue, token);
-                type = 0; comma = 0; tmpval = 0;
+                token.type = 0; comma = 0; token.val = 0;
             }
         }
         if((ch >= '0' && ch <= '9') || ch == '.' || ch == ',')
         {
-            if(type == 2)
+            if(token.type == 2)
             {
-                token.type = type;
-                token.val = tmpval;
                 syAlg(opstack, &nopstack, queue, &nqueue, token);
-                type = 1; comma = 0; tmpval = 0;
+                token.type = 1; comma = 0; token.val = 0;
             }
-            if(type == 0)
-            { type = 1; comma = 0; tmpval = 0; }
-            if(type == 1)
+            if(token.type == 0)
+            { token.type = 1; comma = 0; token.val = 0; }
+            if(token.type == 1)
             {
                 if(ch == '.' || ch == ',')comma++;
                 else if(comma == 0)
                 {
-                    *((double*)&tmpval) *= 10;
-                    *((double*)&tmpval) += (int)(ch - '0');
+                    *((double*)&token.val) *= 10;
+                    *((double*)&token.val) += (int)(ch - '0');
                 }
                 else
                 {
                     double digit = (int)(ch - '0');
                     for(int c = 0; c < comma; c++)
                         digit /= 10;
-                    *((double*)&tmpval) += digit;
+                    *((double*)&token.val) += digit;
                     comma++;
                 }
             }
         }
         if(ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '(' || ch == ')')
         {
-            if(type == 1)
+            if(token.type == 1)
             {
-                token.type = type;
-                token.val = tmpval;
+                token.val = token.val;
                 syAlg(opstack, &nopstack, queue, &nqueue, token);
-                type = 0; comma = 0; tmpval = 0;
+                token.type = 0; comma = 0; token.val = 0;
             }
             token.type = 2;
             token.val = ch;
             syAlg(opstack, &nopstack, queue, &nqueue, token);
-            type = 0; comma = 0; tmpval = 0;
+            token.type = 0; comma = 0; token.val = 0;
         }
     }
-    if(type == 1)
+    if(token.type == 1)
     {
-        token.type = type;
-        token.val = tmpval;
+        token.val = token.val;
         syAlg(opstack, &nopstack, queue, &nqueue, token);
-        type = 0; comma = 0; tmpval = 0;
+        token.type = 0; comma = 0; token.val = 0;
     }
 
     while(nopstack)
