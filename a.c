@@ -130,8 +130,9 @@ int process_token(Token_t* tokens, int* ptFilled)
     return 1;
 }
 
-void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t token)
+void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t token, Token_t* lastToken)
 {
+    *lastToken = token;
     if (token.type == 1)
     {
         push_token(queue, token.type, token.value.u64, nqueue);
@@ -169,20 +170,24 @@ int main()
     Token_t opstack[1000]; int nopstack = 0;
     Token_t queue[1000];   int nqueue = 0;
 
-    Token_t token;
+    Token_t token = {0, {0ULL}}, lastToken = {0, {0ULL}};
     int comma = 0;
     for (int ch = fgetc(stdin); ch >= 32 && ch <= 127; ch = fgetc(stdin))
     {
         if (ch == ' ')
         {
             if (token.type == 1)
-                syAlg(opstack, &nopstack, queue, &nqueue, token);
+                syAlg(opstack, &nopstack, queue, &nqueue, token, &lastToken);
             token = (Token_t) {0, {0ULL}};
         }
         if ((ch >= '0' && ch <= '9') || ch == '.' || ch == ',')
         {
             if (token.type != 1)
-            { comma = 0; token = (Token_t) {1, {0.0}}; }
+            {
+                if(lastToken.type == 2 && lastToken.value.u64 == ')')
+                    syAlg(opstack, &nopstack, queue, &nqueue, (Token_t) {2, {'*'}}, &lastToken);
+                comma = 0; token = (Token_t) {1, {0.0}}; 
+            }
             if ((ch == '.' || ch == ',') && comma == 0)
                 comma++;
             else if (comma == 0)
@@ -201,12 +206,16 @@ int main()
         if (ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '(' || ch == ')')
         {
             if (token.type == 1)
-                syAlg(opstack, &nopstack, queue, &nqueue, token);
+                syAlg(opstack, &nopstack, queue, &nqueue, token, &lastToken);
+            if (ch == '(' && lastToken.type == 1)
+                syAlg(opstack, &nopstack, queue, &nqueue, (Token_t) {2, {'*'}}, &lastToken);
+            else if (ch == '(' && (lastToken.type == 2 && lastToken.value.u64 == ')'))
+                syAlg(opstack, &nopstack, queue, &nqueue, (Token_t) {2, {'*'}}, &lastToken);
             token = (Token_t) {2, {(uint64_t)ch}};
-            syAlg(opstack, &nopstack, queue, &nqueue, token);
+            syAlg(opstack, &nopstack, queue, &nqueue, token, &lastToken);
         }
     }
-    syAlg(opstack, &nopstack, queue, &nqueue, token);
+    if(token.type == 1)syAlg(opstack, &nopstack, queue, &nqueue, token, &lastToken);
 
     if ((opstack[nopstack - 1].type == 2) && (opstack[nopstack - 1].value.u64 == '('))
     {
