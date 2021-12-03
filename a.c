@@ -15,11 +15,16 @@
 typedef struct
 {
     int type;
-    uint64_t val;
+    union 
+    {
+        /* data */
+        uint64_t data_u64;
+        double data_f64;
+    }value;
 }Token_t;
 
 int prec(Token_t op) {
-    char c = op.val;
+    char c = op.value.data_u64;
     if(c == '/' || c=='*')
         return 2;
     else if(c == '+' || c == '-')
@@ -30,7 +35,7 @@ int prec(Token_t op) {
 
 void push_token(Token_t* buf, int type, uint64_t val, int* nfilled)
 {
-    Token_t tmpval = {type, val};
+    Token_t tmpval = {type, {val}};
     buf[(*nfilled)++] = tmpval;
 }
 
@@ -44,40 +49,40 @@ void print_queue(Token_t* queue, int nqueue)
     for(int i = 0; i < nqueue; i++)
     {
         if(queue[i].type == 1)
-            printf("%lg ", *((double*)&queue[i].val));
+            printf("%lg ", queue[i].value.data_f64);
         else if(queue[i].type == 2)
-            printf("%c ", (char)queue[i].val);
+            printf("%c ", (char)queue[i].value.data_u64);
     }
     printf("\n");
 }
 
 Token_t operate(Token_t* t1, Token_t* t2, Token_t* operator)
 {
-    Token_t result = {1, 0ULL};
-    switch ((char)operator->val) 
+    Token_t result = {1, {0ULL}};
+    switch ((char)operator->value.data_u64) 
     {
         case '+': 
         {
-            *((double*)&(result.val)) = *((double*)&(t1->val)) + *((double*)&(t2->val));
+            result.value.data_f64 = t1->value.data_f64 + t2->value.data_f64;
             break;
         }
         case '-': 
         {
-            *((double*)&(result.val)) = *((double*)&(t1->val)) - *((double*)&(t2->val));
+            result.value.data_f64 = t1->value.data_f64 - t2->value.data_f64;
             break;
         }
         case '*': 
         {
-            *((double*)&(result.val)) = *((double*)&(t1->val)) * *((double*)&(t2->val));
+            result.value.data_f64 = t1->value.data_f64 * t2->value.data_f64;
             break;
         }
         case '/': 
         {
-            *((double*)&(result.val)) = *((double*)&(t1->val)) / *((double*)&(t2->val));
+            result.value.data_f64 = t1->value.data_f64 / t2->value.data_f64;
             break;
         }
     }
-    printf("operate : %lg %c %lg = %lg\n", *(double*)&t1->val, (char)operator->val, *(double*)&t2->val, *(double*)&result.val);
+    printf("operate : %lg %c %lg = %lg\n", t1->value.data_f64, (char)operator->value.data_u64, t2->value.data_f64, result.value.data_f64);
     return result;
 }
 
@@ -85,7 +90,7 @@ int process_token(Token_t* tokens, int* ptFilled)
 {
     int tFilled = *ptFilled;
     if(tFilled < 3) return -1;
-    Token_t space = {0, 0ULL};
+    Token_t space = {0, {0ULL}};
     Token_t *tOp = NULL, *t1 = NULL, *t0 = NULL;
     int i = 0;
     for(; i < tFilled; i++)
@@ -118,14 +123,14 @@ int process_token(Token_t* tokens, int* ptFilled)
 void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t token)
 {
     if(token.type == 1)
-        push_token(queue, token.type, token.val, nqueue);
+        push_token(queue, token.type, token.value.data_u64, nqueue);
     if(token.type == 2)
     {
-        if(token.val == '(')
-            push_token(opstack, token.type, token.val, nopstack);
-        else if(token.val == ')')
+        if(token.value.data_u64 == '(')
+            push_token(opstack, token.type, token.value.data_u64, nopstack);
+        else if(token.value.data_u64 == ')')
         {
-            while(opstack[(*nopstack) - 1].val != '(')
+            while(opstack[(*nopstack) - 1].value.data_u64 != '(')
             {
                 pop_token(queue, nqueue, opstack, nopstack);
                 if(*nopstack == 0)
@@ -142,7 +147,7 @@ void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t
             {
                 pop_token(queue, nqueue, opstack, nopstack);
             }
-            push_token(opstack, token.type, token.val, nopstack);
+            push_token(opstack, token.type, token.value.data_u64, nopstack);
         }
     }
 }
@@ -163,12 +168,12 @@ int main()
             if(token.type == 1)
             {
                 syAlg(opstack, &nopstack, queue, &nqueue, token);
-                token.type = 0; comma = 0; token.val = 0;
+                token.type = 0; comma = 0; token.value.data_u64 = 0;
             }
             if(token.type != 0)
             {
                 syAlg(opstack, &nopstack, queue, &nqueue, token);
-                token.type = 0; comma = 0; token.val = 0;
+                token.type = 0; comma = 0; token.value.data_u64 = 0;
             }
         }
         if((ch >= '0' && ch <= '9') || ch == '.' || ch == ',')
@@ -176,24 +181,24 @@ int main()
             if(token.type == 2)
             {
                 syAlg(opstack, &nopstack, queue, &nqueue, token);
-                token.type = 1; comma = 0; token.val = 0;
+                token.type = 1; comma = 0; token.value.data_u64 = 0;
             }
             if(token.type == 0)
-            { token.type = 1; comma = 0; token.val = 0; }
+            { token.type = 1; comma = 0; token.value.data_u64 = 0; }
             if(token.type == 1)
             {
                 if(ch == '.' || ch == ',')comma++;
                 else if(comma == 0)
                 {
-                    *((double*)&token.val) *= 10;
-                    *((double*)&token.val) += (int)(ch - '0');
+                    token.value.data_f64 *= 10;
+                    token.value.data_f64 += (int)(ch - '0');
                 }
                 else
                 {
                     double digit = (int)(ch - '0');
                     for(int c = 0; c < comma; c++)
                         digit /= 10;
-                    *((double*)&token.val) += digit;
+                    token.value.data_f64 += digit;
                     comma++;
                 }
             }
@@ -202,24 +207,22 @@ int main()
         {
             if(token.type == 1)
             {
-                token.val = token.val;
                 syAlg(opstack, &nopstack, queue, &nqueue, token);
-                token.type = 0; comma = 0; token.val = 0;
+                token.type = 0; comma = 0; token.value.data_u64 = 0;
             }
             token.type = 2;
-            token.val = ch;
+            token.value.data_u64 = ch;
             syAlg(opstack, &nopstack, queue, &nqueue, token);
-            token.type = 0; comma = 0; token.val = 0;
+            token.type = 0; comma = 0; token.value.data_u64 = 0;
         }
     }
     if(token.type == 1)
     {
-        token.val = token.val;
         syAlg(opstack, &nopstack, queue, &nqueue, token);
-        token.type = 0; comma = 0; token.val = 0;
+        token.type = 0; comma = 0; token.value.data_u64 = 0;
     }
 
-    if((opstack[nopstack - 1].type == 2) && (opstack[nopstack - 1].val == '('))
+    if((opstack[nopstack - 1].type == 2) && (opstack[nopstack - 1].value.data_u64 == '('))
     {
         fprintf(stderr, "ERROR. mismatched parentheses\n");
         exit(-1);
@@ -237,6 +240,4 @@ int main()
         print_queue(queue, nqueue);
     }
     if(err == -1) printf("error -1\n");
-    
-    //print_queue(queue, nqueue);
 } 
