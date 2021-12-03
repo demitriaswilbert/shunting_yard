@@ -133,7 +133,9 @@ int process_token(Token_t* tokens, int* ptFilled)
 void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t token)
 {
     if (token.type == 1)
+    {
         push_token(queue, token.type, token.value.u64, nqueue);
+    }
     if (token.type == 2)
     {
         if (token.value.u64 == '(')
@@ -174,60 +176,37 @@ int main()
         if (ch == ' ')
         {
             if (token.type == 1)
-            {
                 syAlg(opstack, &nopstack, queue, &nqueue, token);
-                token.type = 0; comma = 0; token.value.u64 = 0;
-            }
-            if (token.type != 0)
-            {
-                syAlg(opstack, &nopstack, queue, &nqueue, token);
-                token.type = 0; comma = 0; token.value.u64 = 0;
-            }
+            token = (Token_t) {0, {0ULL}};
         }
         if ((ch >= '0' && ch <= '9') || ch == '.' || ch == ',')
         {
-            if (token.type == 2)
+            if (token.type != 1)
+            { comma = 0; token = (Token_t) {1, {0.0}}; }
+            if ((ch == '.' || ch == ',') && comma == 0)
+                comma++;
+            else if (comma == 0)
             {
-                syAlg(opstack, &nopstack, queue, &nqueue, token);
-                token.type = 1; comma = 0; token.value.u64 = 0;
+                token.value.f64 *= 10;
+                token.value.f64 += (int)(ch - '0');
             }
-            if (token.type == 0)
-            { token.type = 1; comma = 0; token.value.u64 = 0; }
-            if (token.type == 1)
+            else
             {
-                if (ch == '.' || ch == ',')
-                    comma++;
-                else if (comma == 0)
-                {
-                    token.value.f64 *= 10;
-                    token.value.f64 += (int)(ch - '0');
-                }
-                else
-                {
-                    double digit = (int)(ch - '0');
-                    for (int c = 0; c < comma; c++)
-                        digit /= 10;
-                    token.value.f64 += digit; comma++;
-                }
+                double digit = (int)(ch - '0');
+                for (int c = 0; c < comma; c++)
+                    digit /= 10;
+                token.value.f64 += digit; comma++;
             }
         }
         if (ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '(' || ch == ')')
         {
             if (token.type == 1)
-            {
                 syAlg(opstack, &nopstack, queue, &nqueue, token);
-                token.type = 0; comma = 0; token.value.u64 = 0;
-            }
-            token.type = 2; token.value.u64 = ch;
+            token = (Token_t) {2, {(uint64_t)ch}};
             syAlg(opstack, &nopstack, queue, &nqueue, token);
-            token.type = 0; comma = 0; token.value.u64 = 0;
         }
     }
-    if (token.type == 1)
-    {
-        syAlg(opstack, &nopstack, queue, &nqueue, token);
-        token.type = 0; comma = 0; token.value.u64 = 0;
-    }
+    syAlg(opstack, &nopstack, queue, &nqueue, token);
 
     if ((opstack[nopstack - 1].type == 2) && (opstack[nopstack - 1].value.u64 == '('))
     {
