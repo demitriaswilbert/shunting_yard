@@ -8,23 +8,13 @@
  * @copyright Copyright (c) 2021
  * 
  */
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "shunting_yard.h"
 
-typedef struct
-{
-    int type;
-    union
-    {
-        uint64_t u64;
-        double f64;
-    } value;
-} Token_t;
-
-int prec(Token_t op)
+static int prec(Token_t op)
 {
     char c = op.value.u64;
+    if (c == '^')
+        return 3;
     if (c == '/' || c == '*')
         return 2;
     if (c == '+' || c == '-')
@@ -32,30 +22,18 @@ int prec(Token_t op)
     return -1;
 }
 
-void push_token(Token_t* buf, int type, uint64_t val, int* nfilled)
+static void push_token(Token_t* buf, int type, uint64_t val, int* nfilled)
 {
     Token_t tmpval = {type, {val}};
     buf[(*nfilled)++] = tmpval;
 }
 
-void pop_token(Token_t* dest, int* destFilled, Token_t* src, int* srcFilled)
+static void pop_token(Token_t* dest, int* destFilled, Token_t* src, int* srcFilled)
 {
     dest[(*destFilled)++] = src[--(*srcFilled)];
 }
 
-void print_queue(Token_t* queue, int nqueue)
-{
-    for (int i = 0; i < nqueue; i++)
-    {
-        if (queue[i].type == 1)
-            printf("%lg ", queue[i].value.f64);
-        else if (queue[i].type == 2)
-            printf("%c ", (char)queue[i].value.u64);
-    }
-    printf("\n");
-}
-
-Token_t operate(Token_t* t1, Token_t* t2, Token_t* operator)
+static Token_t operate(Token_t* t1, Token_t* t2, Token_t* operator)
 {
     Token_t result = {1, {0ULL}};
     switch ((char)operator->value.u64)
@@ -80,15 +58,20 @@ Token_t operate(Token_t* t1, Token_t* t2, Token_t* operator)
             result.value.f64 = t1->value.f64 / t2->value.f64;
             break;
         }
+        case '^':
+        {
+            result.value.f64 = pow(t1->value.f64, t2->value.f64);
+            break;
+        }
     }
-    printf("operate : %lg %c %lg = %lg\n", t1->value.f64, (char)operator->value.u64, t2->value.f64, result.value.f64);
+    // printf("operate : %lg %c %lg = %lg\n", t1->value.f64, (char)operator->value.u64, t2->value.f64, result.value.f64);
     return result;
 }
 
-int process_token(Token_t* tokens, int* ptFilled)
+static int process_token(Token_t* tokens, int* ptFilled)
 {
     int tFilled = *ptFilled;
-    if (tFilled < 3) return -1;
+    // if (tFilled < 3) return -1;
     Token_t space = {0, {0ULL}};
     Token_t *tOp = NULL, *t1 = NULL, *t0 = NULL;
     int i = 0;
@@ -130,7 +113,7 @@ int process_token(Token_t* tokens, int* ptFilled)
     return 1;
 }
 
-void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t token, Token_t* lastToken)
+static void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t token, Token_t* lastToken)
 {
     *lastToken = token;
     if (token.type == 1)
@@ -156,7 +139,7 @@ void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t
         }
         else
         {
-            while (((*nopstack) > 0) && prec(token) <= prec(opstack[(*nopstack) - 1]))
+            while (((*nopstack) > 0) && prec(token) <= prec(opstack[(*nopstack) - 1]) && token.value.u64 != '^')
             {
                 pop_token(queue, nqueue, opstack, nopstack);
             }
@@ -165,15 +148,16 @@ void syAlg(Token_t* opstack, int* nopstack, Token_t* queue, int* nqueue, Token_t
     }
 }
 
-int main()
+Token_t Calculate(char* expr)
 {
     Token_t opstack[1000]; int nopstack = 0;
     Token_t queue[1000];   int nqueue = 0;
 
     Token_t token = {0, {0ULL}}, lastToken = {0, {0ULL}};
     int comma = 0;
-    for (int ch = fgetc(stdin); ch >= 32 && ch <= 127; ch = fgetc(stdin))
+    for (int i = 0; expr[i] != 0; i++)
     {
+        int ch = expr[i];
         if (ch == ' ')
         {
             if (token.type == 1)
@@ -203,7 +187,7 @@ int main()
                 token.value.f64 += digit; comma++;
             }
         }
-        if (ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '(' || ch == ')')
+        if (ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '(' || ch == ')' || ch == '^')
         {
             if (token.type == 1)
                 syAlg(opstack, &nopstack, queue, &nqueue, token, &lastToken);
@@ -219,20 +203,19 @@ int main()
 
     if ((opstack[nopstack - 1].type == 2) && (opstack[nopstack - 1].value.u64 == '('))
     {
-        fprintf(stderr, "ERROR. mismatched parentheses\n");
-        exit(-1);
+        return (Token_t) {3, {0ULL}};
     }
     while (nopstack)
     {
         pop_token(queue, &nqueue, opstack, &nopstack);
     }
 
-    print_queue(queue, nqueue);
     int err = 1;
     while (err > 0)
     {
         err = process_token(queue, &nqueue);
-        print_queue(queue, nqueue);
     }
-    if (err == -1) printf("error -1\n");
+    if (err == -1) return (Token_t) {3, {0ULL}};
+    Token_t retval = queue[nqueue - 1];
+    return retval;
 }
